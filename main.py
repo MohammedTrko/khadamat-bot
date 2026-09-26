@@ -161,6 +161,7 @@ med_markup = InlineKeyboardMarkup(row_width=2).add(
     InlineKeyboardButton("مخابر وتحاليل 🔬", callback_data="labaratory"),
     InlineKeyboardButton("عيادات وأسنان 🦷", callback_data="dentist"),
     InlineKeyboardButton("اسعاف/طوارئ 🚨", callback_data="emergency"),
+    InlineKeyboardButton("ممرضين 🧑‍⚕️", callback_data="nurses"),
     InlineKeyboardButton("رجوع ⬅️", callback_data="back_to_services")
 )
 

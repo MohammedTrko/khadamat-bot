@@ -30,7 +30,7 @@ threading.Thread(target=run_flask).start()
 bot = telebot.TeleBot(token=API_TOKEN)
 
 # 🛑 ضع هنا أيدي التلغرام الخاص بك (الأدمن)
-ADMIN_ID = 8886254489  # استبدل الرقم بأيديك
+ADMIN_IDS = [8886254489, 123456789] # استبدل الرقم بأيديك
 
 # قاموس لحفظ حالة الأدمن عند الإضافة والتعديل
 user_states = {}
@@ -387,7 +387,7 @@ def get_admin_keyboard():
 
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
-    if message.from_user.id == ADMIN_ID:
+    if message.from_user.id in ADMIN_IDS:
         bot.send_message(message.chat.id, "👑 أهلاً بك يا أدمن! تم تفعيل لوحة التحكم:", reply_markup=get_admin_keyboard())
     else:
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -404,7 +404,7 @@ def start_cmd(message):
 # ---------------------------------------------------------
 # 3. أوامر الإدارة (إضافة / بحث / تعديل / حذف)
 # ---------------------------------------------------------
-@bot.message_handler(func=lambda msg: msg.text == "➕ إضافة مزود جديد" and msg.from_user.id == ADMIN_ID)
+@bot.message_handler(func=lambda msg: msg.text == "🔍 بحث وتعديل/حذف" and msg.from_user.id in ADMIN_IDS)
 def admin_add_start(message):
     text = (
         "✍️ **طريقة إضافة مزود جديد:**\n\n"
@@ -420,14 +420,14 @@ def admin_add_start(message):
     user_states[message.chat.id] = "WAITING_ADD_DATA"
     bot.send_message(message.chat.id, text, parse_mode="Markdown")
 
-@bot.message_handler(func=lambda msg: msg.text == "🔍 بحث وتعديل/حذف" and msg.from_user.id == ADMIN_ID)
+@bot.message_handler(func=lambda msg: msg.text == "🔍 بحث وتعديل/حذف" and msg.from_user.id in ADMIN_IDS)
 def admin_search_start(message):
     user_states[message.chat.id] = "WAITING_SEARCH_TERM"
     bot.send_message(message.chat.id, "🔎 أرسل اسم المزود أو رقم هاتفه للبحث عنه:")
 
 @bot.message_handler(commands=['delete'])
 def cmd_delete_provider(message):
-    if message.from_user.id != ADMIN_ID:
+    if message.from_user.id not in ADMIN_IDS:
         return
     try:
         parts = message.text.split()
@@ -444,7 +444,7 @@ def cmd_delete_provider(message):
 
 @bot.message_handler(commands=['edit'])
 def cmd_edit_provider(message):
-    if message.from_user.id != ADMIN_ID:
+    if message.from_user.id not in ADMIN_IDS:
         return
     text = (
         "✏️ **طريقة تعديل بيانات مزود:**\n\n"

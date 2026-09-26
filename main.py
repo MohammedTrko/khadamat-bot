@@ -4,7 +4,7 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeybo
 from telebot.apihelper import ApiTelegramException
 import psycopg2
 from psycopg2 import pool
-
+import os
 bot = telebot.TeleBot(token=API_TOKEN)
 
 # 🛑 ضع هنا أيدي التلغرام الخاص بك (الأدمن)
@@ -16,20 +16,31 @@ user_states = {}
 # --------------------------------------------------------- 
 # إعداد مجمع الاتصالات (Connection Pool)
 # ---------------------------------------------------------
-DB_PARAMS = {
-    "dbname": "postgres",
-    "user": "postgres",
-    "password": "123",
-    "host": "localhost",
-    "port": "5432"
-}
+# Render يُنشئ متغيرًا بيئيًا اسمه DATABASE_URL يحتوي على رابط الاتصال كاملاً
+# إذا لم يجد المتغير (أي أثناء التشغيل المحلي على لابتوبك)، سيعود للبيانات المحلية
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-try:
-    db_pool = psycopg2.pool.SimpleConnectionPool(1, 10, **DB_PARAMS)
-    print("PostgreSQL connection pool created successfully")
-except Exception as e:
-    print(f"Error creating connection pool: {e}")
-
+if DATABASE_URL:
+    # الاتصال عبر رابط DATABASE_URL المقدم من Render
+    try:
+        db_pool = psycopg2.pool.SimpleConnectionPool(1, 10, dsn=DATABASE_URL)
+        print("PostgreSQL connection pool created successfully (from Render Environment)")
+    except Exception as e:
+        print(f"Error creating connection pool: {e}")
+else:
+    # الاتصال المحلي على جهازك
+    DB_PARAMS = {
+        "dbname": "postgres",
+        "user": "postgres",
+        "password": "123",
+        "host": "localhost",
+        "port": "5432"
+    }
+    try:
+        db_pool = psycopg2.pool.SimpleConnectionPool(1, 10, **DB_PARAMS)
+        print("PostgreSQL connection pool created successfully (Localhost)")
+    except Exception as e:
+        print(f"Error creating connection pool: {e}")
 # ---------------------------------------------------------
 # دالّات التعامل مع قاعدة البيانات
 # ---------------------------------------------------------

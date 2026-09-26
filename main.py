@@ -5,6 +5,28 @@ from telebot.apihelper import ApiTelegramException
 import psycopg2
 from psycopg2 import pool
 import os
+import os
+import threading
+from flask import Flask
+
+# 1. إنشاء تطبيق سيرفر وهمي لإبقاء Render سعيداً
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+def run_flask():
+    # Render يمرر البورت تلقائياً عبر المتغير البيئي PORT
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+# 2. تشغيل السيرفر في Thread منفصل
+threading.Thread(target=run_flask).start()
+
+# 3. باقي كود البوت وقاعدة البيانات الخاص بك مستمر هنا...
+# db_pool = ...
+# bot.infinity_polling()
 bot = telebot.TeleBot(token=API_TOKEN)
 
 # 🛑 ضع هنا أيدي التلغرام الخاص بك (الأدمن)

@@ -229,6 +229,7 @@ scientific_markup = InlineKeyboardMarkup(row_width=2).add(
 )
 
 literary_markup = InlineKeyboardMarkup(row_width=2).add(
+    InlineKeyboardButton("فلسفة 🧠", callback_data="philosophy"),
     InlineKeyboardButton("تاريخ 🏺", callback_data="history"),
     InlineKeyboardButton("جغرافيا 🌍", callback_data="geography"),
     InlineKeyboardButton("لغة عربية 📝", callback_data="arabic_lit"),

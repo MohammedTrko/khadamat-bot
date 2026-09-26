@@ -5,7 +5,6 @@ from telebot.apihelper import ApiTelegramException
 import psycopg2
 from psycopg2 import pool
 import os
-import os
 import threading
 from flask import Flask
 
@@ -24,13 +23,10 @@ def run_flask():
 # 2. تشغيل السيرفر في Thread منفصل
 threading.Thread(target=run_flask).start()
 
-# 3. باقي كود البوت وقاعدة البيانات الخاص بك مستمر هنا...
-# db_pool = ...
-# bot.infinity_polling()
 bot = telebot.TeleBot(token=API_TOKEN)
 
-# 🛑 ضع هنا أيدي التلغرام الخاص بك (الأدمن)
-ADMIN_IDS = [8886254489, 123456789] # استبدل الرقم بأيديك
+# 🛑 أضف أيديات الأدمونية هنا داخل القائمة
+ADMIN_IDS = [8886254489]  # ضع المعرف الثاني هنا (مثال: [8886254489, 123456789])
 
 # قاموس لحفظ حالة الأدمن عند الإضافة والتعديل
 user_states = {}
@@ -38,19 +34,15 @@ user_states = {}
 # --------------------------------------------------------- 
 # إعداد مجمع الاتصالات (Connection Pool)
 # ---------------------------------------------------------
-# Render يُنشئ متغيرًا بيئيًا اسمه DATABASE_URL يحتوي على رابط الاتصال كاملاً
-# إذا لم يجد المتغير (أي أثناء التشغيل المحلي على لابتوبك)، سيعود للبيانات المحلية
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
-    # الاتصال عبر رابط DATABASE_URL المقدم من Render
     try:
         db_pool = psycopg2.pool.SimpleConnectionPool(1, 10, dsn=DATABASE_URL)
         print("PostgreSQL connection pool created successfully (from Render Environment)")
     except Exception as e:
         print(f"Error creating connection pool: {e}")
 else:
-    # الاتصال المحلي على جهازك
     DB_PARAMS = {
         "dbname": "postgres",
         "user": "postgres",
@@ -63,6 +55,7 @@ else:
         print("PostgreSQL connection pool created successfully (Localhost)")
     except Exception as e:
         print(f"Error creating connection pool: {e}")
+
 # ---------------------------------------------------------
 # دالّات التعامل مع قاعدة البيانات
 # ---------------------------------------------------------
@@ -404,7 +397,7 @@ def start_cmd(message):
 # ---------------------------------------------------------
 # 3. أوامر الإدارة (إضافة / بحث / تعديل / حذف)
 # ---------------------------------------------------------
-@bot.message_handler(func=lambda msg: msg.text == "🔍 بحث وتعديل/حذف" and msg.from_user.id in ADMIN_IDS)
+@bot.message_handler(func=lambda msg: msg.text == "➕ إضافة مزود جديد" and msg.from_user.id in ADMIN_IDS)
 def admin_add_start(message):
     text = (
         "✍️ **طريقة إضافة مزود جديد:**\n\n"
@@ -466,7 +459,6 @@ def handle_admin_states(message):
     # إلغاء العملية إذا ضغط على أحد أزرار اللوحة
     if message.text in ["خدمات ⚙️", "صالونات نسائية 💄", "حلاقين رجالي 💈", "خدمات الهواتف المحمولة 📱", "عطورات ⚱️💨", "خدمات تدريس 📗", "➕ إضافة مزود جديد", "🔍 بحث وتعديل/حذف"]:
         user_states[message.chat.id] = None
-        # يتم تمرير الرسالة للمعالجات الأخرى
         return
 
     if state == "WAITING_ADD_DATA":

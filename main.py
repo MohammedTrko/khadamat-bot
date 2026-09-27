@@ -16,19 +16,16 @@ def home():
     return "Bot is running!"
 
 def run_flask():
-    # Render يمرر البورت تلقائياً عبر المتغير البيئي PORT
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# 2. تشغيل السيرفر في Thread منفصل
 threading.Thread(target=run_flask).start()
 
 bot = telebot.TeleBot(token=API_TOKEN)
 
-# 🛑 أضف أيديات الأدمونية هنا داخل القائمة
-ADMIN_IDS = [8886254489, 962620820, 6502101293]  # ضع المعرف الثاني هنا (مثال: [8886254489, 123456789])
+# أيديات الأدمن
+ADMIN_IDS = [8886254489, 962620820, 6502101293]
 
-# قاموس لحفظ حالة الأدمن عند الإضافة والتعديل
 user_states = {}
 
 # --------------------------------------------------------- 
@@ -57,7 +54,7 @@ else:
         print(f"Error creating connection pool: {e}")
 
 # ---------------------------------------------------------
-# دالّات التعامل مع قاعدة البيانات
+# دالّات التعامل مع قاعدة البيانات (جدول المزودين)
 # ---------------------------------------------------------
 def get_providers_by_category(category_code):
     conn = None
@@ -145,6 +142,65 @@ def update_provider_in_db(provider_id, name, phone, details, category_code):
         return affected > 0
     except Exception as e:
         print(f"Database Update Error: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
+# ---------------------------------------------------------
+# دالّات التعامل مع أسعار الهواتف (جدول phone_prices)
+# ---------------------------------------------------------
+def get_all_phone_prices():
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        cursor = conn.cursor()
+        query = "SELECT id, model, price FROM phone_prices ORDER BY id DESC;"
+        cursor.execute(query)
+        results = cursor.fetchall()
+        cursor.close()
+        return results
+    except Exception as e:
+        print(f"Database Error (phone_prices): {e}")
+        return []
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
+def add_phone_price_to_db(model, price):
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        cursor = conn.cursor()
+        query = "INSERT INTO phone_prices (model, price) VALUES (%s, %s);"
+        cursor.execute(query, (model, price))
+        conn.commit()
+        cursor.close()
+        return True
+    except Exception as e:
+        print(f"Database Phone Price Insert Error: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
+def delete_phone_price_from_db(price_id):
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        cursor = conn.cursor()
+        query = "DELETE FROM phone_prices WHERE id = %s;"
+        cursor.execute(query, (price_id,))
+        conn.commit()
+        affected = cursor.rowcount
+        cursor.close()
+        return affected > 0
+    except Exception as e:
+        print(f"Database Phone Price Delete Error: {e}")
         if conn:
             conn.rollback()
         return False
@@ -321,6 +377,13 @@ grade_7_markup = InlineKeyboardMarkup(row_width=2).add(
     InlineKeyboardButton("رجوع ⬅️", callback_data="back_to_e3dady")
 )
 
+mobile_services_markup = InlineKeyboardMarkup(row_width=2).add(
+    InlineKeyboardButton("أسعار الهواتف 📱", callback_data="phone_prices"),
+    InlineKeyboardButton("إكسسوارات 🎧", callback_data="phone_acc"),
+    InlineKeyboardButton("صيانة 🛠️", callback_data="phone_repair"),
+    InlineKeyboardButton("شحن برامج وألعاب 🎮", callback_data="apps_charging")
+)
+
 main_services_markup = InlineKeyboardMarkup(row_width=2).add(
     InlineKeyboardButton("طبية 💉", callback_data="medicine"),
     InlineKeyboardButton("وسائل نقل 🚕", callback_data="transport"),
@@ -359,13 +422,17 @@ navigation_callbacks = {
 }
 
 # ---------------------------------------------------------
-# 2. لوحة تحكم الأدمن والعدّاد الإداري
+# 2. لوحة تحكم الأدمن
 # ---------------------------------------------------------
 def get_admin_keyboard():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(
         KeyboardButton("➕ إضافة مزود جديد"),
         KeyboardButton("🔍 بحث وتعديل/حذف")
+    )
+    markup.add(
+        KeyboardButton("📱➕ إضافة سعر هاتف"),
+        KeyboardButton("📱❌ حذف سعر هاتف")
     )
     markup.add(
         KeyboardButton("خدمات ⚙️"),
@@ -396,7 +463,7 @@ def start_cmd(message):
         bot.send_message(message.chat.id, "أهلاً بك! اختر الخدمة التي تريدها:", reply_markup=markup)
 
 # ---------------------------------------------------------
-# 3. أوامر الإدارة (إضافة / بحث / تعديل / حذف)
+# 3. أوامر الإدارة (إضافة / بحث / تعديل / حذف / إدارة أسعار الهواتف)
 # ---------------------------------------------------------
 @bot.message_handler(func=lambda msg: msg.text == "➕ إضافة مزود جديد" and msg.from_user.id in ADMIN_IDS)
 def admin_add_start(message):
@@ -405,14 +472,54 @@ def admin_add_start(message):
         "أرسل بيانات المزود بفيشة واحدة كالتالي:\n"
         "`الكود | الاسم | الهاتف | التفاصيل`\n\n"
         "**مثال:**\n"
-        "`heart | د. سامر العلي | 0911223344 | عيادة الشعلان - دوام 4 لـ 8`\n\n"
-        "💡 **أكواد شائعة:**\n"
-        "• `heart` (قلبية), `children` (أطفال), `dentist` (أسنان)\n"
-        "• `taxi` (تكسي), `plumber` (صحية), `math` (رياضيات)\n"
-        "• `women_salon` (صالون نسائي), `men_barber` (حلاق)"
+        "`heart | د. سامر العلي | 0911223344 | عيادة الشعلان - دوام 4 لـ 8`"
     )
     user_states[message.chat.id] = "WAITING_ADD_DATA"
     bot.send_message(message.chat.id, text, parse_mode="Markdown")
+
+@bot.message_handler(func=lambda msg: msg.text == "📱➕ إضافة سعر هاتف" and msg.from_user.id in ADMIN_IDS)
+def admin_add_phone_price_start(message):
+    text = (
+        "📲 **إضافة سعر هاتف جديد:**\n\n"
+        "أرسل البيانات بالشكل التالي:\n"
+        "`الموديل | السعر`\n\n"
+        "**مثال:**\n"
+        "`Samsung Galaxy A55 | 3,200,000 ل.س`\n"
+        "`iPhone 15 Pro Max | 14,500,000 ل.س`"
+    )
+    user_states[message.chat.id] = "WAITING_ADD_PHONE_PRICE"
+    bot.send_message(message.chat.id, text, parse_mode="Markdown")
+
+@bot.message_handler(func=lambda msg: msg.text == "📱❌ حذف سعر هاتف" and msg.from_user.id in ADMIN_IDS)
+def admin_delete_phone_price_start(message):
+    prices = get_all_phone_prices()
+    if not prices:
+        bot.send_message(message.chat.id, "⚠️ لا توجد أجهزة مسجلة في قائمة الأسعار حالياً.")
+        return
+    
+    response = "📋 **قائمة أسعار الهواتف المسجلة:**\n\n"
+    for p_id, model, price in prices:
+        response += f"🆔 **ID:** `{p_id}` | 📱 {model} - 💰 {price}\n"
+    
+    response += "\n💡 **للحذف:** أرسل الأمر `/delphone ID` (مثال: `/delphone 3`)"
+    bot.send_message(message.chat.id, response, parse_mode="Markdown")
+
+@bot.message_handler(commands=['delphone'])
+def cmd_delete_phone_price(message):
+    if message.from_user.id not in ADMIN_IDS:
+        return
+    try:
+        parts = message.text.split()
+        if len(parts) < 2:
+            bot.reply_to(message, "⚠️ الاستخدام الصحيح:\n`/delphone ID`\nمثال: `/delphone 2`", parse_mode="Markdown")
+            return
+        p_id = int(parts[1])
+        if delete_phone_price_from_db(p_id):
+            bot.reply_to(message, f"✅ تم حذف الهاتف ذو الرقم `{p_id}` من قائمة الأسعار بنجاح!", parse_mode="Markdown")
+        else:
+            bot.reply_to(message, f"❌ لم يتم العثور على هاتف بالرقم المعرف `{p_id}`.", parse_mode="Markdown")
+    except ValueError:
+        bot.reply_to(message, "⚠️ الرقم المعرف يجب أن يكون رقماً صحيحاً.")
 
 @bot.message_handler(func=lambda msg: msg.text == "🔍 بحث وتعديل/حذف" and msg.from_user.id in ADMIN_IDS)
 def admin_search_start(message):
@@ -458,7 +565,7 @@ def handle_admin_states(message):
     state = user_states.get(message.chat.id)
 
     # إلغاء العملية إذا ضغط على أحد أزرار اللوحة
-    if message.text in ["خدمات ⚙️", "صالونات نسائية 💄", "حلاقين رجالي 💈", "خدمات الهواتف المحمولة 📱", "عطورات ⚱️💨", "خدمات تدريس 📗", "➕ إضافة مزود جديد", "🔍 بحث وتعديل/حذف"]:
+    if message.text in ["خدمات ⚙️", "صالونات نسائية 💄", "حلاقين رجالي 💈", "خدمات الهواتف المحمولة 📱", "عطورات ⚱️💨", "خدمات تدريس 📗", "➕ إضافة مزود جديد", "🔍 بحث وتعديل/حذف", "📱➕ إضافة سعر هاتف", "📱❌ حذف سعر هاتف"]:
         user_states[message.chat.id] = None
         return
 
@@ -474,6 +581,19 @@ def handle_admin_states(message):
             user_states[message.chat.id] = None
         else:
             bot.reply_to(message, "❌ حدث خطأ أثناء إضافة البيانات في قاعدة البيانات.")
+
+    elif state == "WAITING_ADD_PHONE_PRICE":
+        parts = [p.strip() for p in message.text.split("|")]
+        if len(parts) < 2:
+            bot.reply_to(message, "⚠️ تنسيق خاطئ! تأكد من إرسال البيانات بالشكل:\n`الموديل | السعر`", parse_mode="Markdown")
+            return
+
+        model, price = parts[0], parts[1]
+        if add_phone_price_to_db(model, price):
+            bot.reply_to(message, f"✅ **تمت إضافة سعر الهاتف بنجاح!**\n\n📱 **الموديل:** {model}\n💰 **السعر:** {price}", parse_mode="Markdown")
+            user_states[message.chat.id] = None
+        else:
+            bot.reply_to(message, "❌ حدث خطأ أثناء إضافة السعر.")
 
     elif state == "WAITING_SEARCH_TERM":
         term = message.text.strip()
@@ -509,7 +629,7 @@ def handle_admin_states(message):
             bot.reply_to(message, "⚠️ رقم الـ ID يجب أن يكون رقماً صحيحاً.")
 
 # ---------------------------------------------------------
-# 5. أزرار اللوحة الرئيسية والتصفح العام (Text Handlers)
+# 5. أزرار اللوحة الرئيسية والتصفح العام
 # ---------------------------------------------------------
 @bot.message_handler(func=lambda message: message.text == "خدمات ⚙️")
 def service_cmd(message):
@@ -519,14 +639,21 @@ def service_cmd(message):
 def study_cmd(message):
     bot.send_message(message.chat.id, "اختر قسم التدريس الذي تريده:", reply_markup=main_study_markup)
 
+@bot.message_handler(func=lambda message: message.text == "خدمات الهواتف المحمولة 📱")
+def mobile_services_cmd(message):
+    bot.send_message(
+        message.chat.id, 
+        "📱 **قسم خدمات الهواتف المحمولة:**\nاختر الخدمة المطلوبة:", 
+        reply_markup=mobile_services_markup
+    )
+
 @bot.message_handler(func=lambda message: message.text in [
-    "صالونات نسائية 💄", "حلاقين رجالي 💈", "خدمات الهواتف المحمولة 📱", "عطورات ⚱️💨"
+    "صالونات نسائية 💄", "حلاقين رجالي 💈", "عطورات ⚱️💨"
 ])
 def direct_category_handler(message):
     category_map = {
         "صالونات نسائية 💄": "women_salon",
         "حلاقين رجالي 💈": "men_barber",
-        "خدمات الهواتف المحمولة 📱": "mobile_services",
         "عطورات ⚱️💨": "perfumes"
     }
     
@@ -556,6 +683,23 @@ def callback_query(call):
         if data in navigation_callbacks:
             text, markup = navigation_callbacks[data]
             bot.edit_message_text(text, chat_id, msg_id, reply_markup=markup)
+        
+        # معالجة كبسة أسعار الهواتف لعرض الجدول المنسق
+        elif data == "phone_prices":
+            prices = get_all_phone_prices()
+            if prices:
+                response = "📱 **جدول أسعار الهواتف المحمولة:**\n\n"
+                response += "```\n"
+                response += f"{'الموديل':<22} | {'السعر'}\n"
+                response += "-" * 35 + "\n"
+                for _, model, price in prices:
+                    response += f"{model:<22} | {price}\n"
+                response += "```"
+            else:
+                response = "⚠️ لا توجد أسعار مسجلة حالياً."
+
+            bot.send_message(chat_id, response, parse_mode="Markdown")
+
         else:
             providers = get_providers_by_category(data)
             if providers:

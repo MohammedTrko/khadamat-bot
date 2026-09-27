@@ -437,8 +437,8 @@ main_study_markup = InlineKeyboardMarkup(row_width=2).add(
 
 # نص الترويسة لخدمات الهواتف المحمولة
 MOBILE_HEADER_TEXT = (
-    "🏬 ** محل: المجرة**\n"
-    "📞 **للتواصل والطلب:**0938405073`\n"
+    "🏬 **محل: المجرة**\n"
+    "📞 **للتواصل والطلب:** `0938405073`\n"
     "📍 **العنوان:** وادي المشاريع قبل ساحة الشهداء\n\n"
     "-----------------------------------\n"
     "📱 **قسم خدمات الهواتف المحمولة:**\n"
@@ -757,11 +757,67 @@ def callback_query(call):
 
             bot.edit_message_text(response, chat_id, msg_id, reply_markup=back_markup, parse_mode="Markdown")
 
-        # معالجة بقية التصنيفات (جلب من جدول المزودين providers)
+        # معالجة الأقسام الفرعية لخدمات الهواتف المحمولة
+        elif data == "phone_acc":
+            back_markup = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("رجوع ⬅️", callback_data="back_to_mobile_services")
+            )
+            response = (
+                "🎧 **قسم إكسسوارات الهواتف:**\n\n"
+                "متوفر لدينا كافة الإكسسوارات الأصلية:\n"
+                "▪️ سماعات بلوتوث وسلكية عالي الجودة.\n"
+                "▪️ شواحن سريعة ورؤوس أصلية (Type-C & Lightning).\n"
+                "▪️ كفرات حماية متنوعة ومجنابة.\n"
+                "▪️ لزقات حماية شاشة (حراري، نانو، زجاج).\n\n"
+                "📞 للتواصل والطلب: `0938405073`"
+            )
+            bot.edit_message_text(response, chat_id, msg_id, reply_markup=back_markup, parse_mode="Markdown")
+
+        elif data == "phone_repair":
+            back_markup = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("رجوع ⬅️", callback_data="back_to_mobile_services")
+            )
+            response = (
+                "🛠️ **قسم صيانة الهواتف المحمولة:**\n\n"
+                "نقدم خدمات الصيانة الفورية بأيدي أخصائيين:\n"
+                "▪️ تبديل شاشات أصلية ومكفولة.\n"
+                "▪️ تبديل بطاريات وبطاريات أصلية.\n"
+                "▪️ صيانة أعطال البورد والشحن.\n"
+                "▪️ حل مشاكل السوفتوير وفك الحماية.\n\n"
+                "📞 للتواصل والاستفسار: `0938405073`"
+            )
+            bot.edit_message_text(response, chat_id, msg_id, reply_markup=back_markup, parse_mode="Markdown")
+
+        elif data == "games_charging":
+            back_markup = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("رجوع ⬅️", callback_data="apps_charging")
+            )
+            response = (
+                "🎮 **شحن رصيد الألعاب:**\n\n"
+                "▪️ شحن شدات ببجي موبايل (PUBG Mobile UC).\n"
+                "▪️ شحن جواهر فري فاير (Free Fire).\n"
+                "▪️ شحن العاب أخرى (Roblox, Call of Duty).\n\n"
+                "📞 للطلب والشحن الفوري تواصل معنا: `0938405073`"
+            )
+            bot.edit_message_text(response, chat_id, msg_id, reply_markup=back_markup, parse_mode="Markdown")
+
+        elif data == "app_charging":
+            back_markup = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("رجوع ⬅️", callback_data="apps_charging")
+            )
+            response = (
+                "📱 **شحن وتفعيل التطبيقات:**\n\n"
+                "▪️ تفعيل اشتراكات نتفلكس (Netflix).\n"
+                "▪️ تفعيل يوتيوب بريميوم (YouTube Premium).\n"
+                "▪️ تفعيل تطبيقات البث والبرامج المدفوعة.\n\n"
+                "📞 للطلب والتفعيل الفوري تواصل معنا: `0938405073`"
+            )
+            bot.edit_message_text(response, chat_id, msg_id, reply_markup=back_markup, parse_mode="Markdown")
+
+        # معالجة بقية التصنيفات العامة (جلب من جدول المزودين providers)
         else:
             providers = get_providers_by_category(data)
             
-            # تحديد زر الرجوع حسب القسم
             back_markup = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("رجوع ⬅️", callback_data="back_to_services")
             )

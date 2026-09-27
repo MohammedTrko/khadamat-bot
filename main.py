@@ -150,32 +150,49 @@ def update_provider_in_db(provider_id, name, phone, details, category_code):
             db_pool.putconn(conn)
 
 # ---------------------------------------------------------
-# دالّات التعامل مع أسعار الهواتف (جدول phone_prices)
+# دالّات التعامل مع أسعار الهواتف بحسب البراند (phone_prices)
 # ---------------------------------------------------------
-def get_all_phone_prices():
+def get_phone_prices_by_brand(brand_code):
     conn = None
     try:
         conn = db_pool.getconn()
         cursor = conn.cursor()
-        query = "SELECT id, model, price FROM phone_prices ORDER BY id DESC;"
-        cursor.execute(query)
+        query = "SELECT id, model, price FROM phone_prices WHERE brand = %s ORDER BY id DESC;"
+        cursor.execute(query, (brand_code,))
         results = cursor.fetchall()
         cursor.close()
         return results
     except Exception as e:
-        print(f"Database Error (phone_prices): {e}")
+        print(f"Database Error (get_phone_prices_by_brand): {e}")
         return []
     finally:
         if conn:
             db_pool.putconn(conn)
 
-def add_phone_price_to_db(model, price):
+def get_all_phone_prices():
     conn = None
     try:
         conn = db_pool.getconn()
         cursor = conn.cursor()
-        query = "INSERT INTO phone_prices (model, price) VALUES (%s, %s);"
-        cursor.execute(query, (model, price))
+        query = "SELECT id, brand, model, price FROM phone_prices ORDER BY id DESC LIMIT 30;"
+        cursor.execute(query)
+        results = cursor.fetchall()
+        cursor.close()
+        return results
+    except Exception as e:
+        print(f"Database Error (get_all_phone_prices): {e}")
+        return []
+    finally:
+        if conn:
+            db_pool.putconn(conn)
+
+def add_phone_price_to_db(brand, model, price):
+    conn = None
+    try:
+        conn = db_pool.getconn()
+        cursor = conn.cursor()
+        query = "INSERT INTO phone_prices (brand, model, price) VALUES (%s, %s, %s);"
+        cursor.execute(query, (brand.lower().strip(), model, price))
         conn.commit()
         cursor.close()
         return True
@@ -378,10 +395,26 @@ grade_7_markup = InlineKeyboardMarkup(row_width=2).add(
 )
 
 mobile_services_markup = InlineKeyboardMarkup(row_width=2).add(
-    InlineKeyboardButton("أسعار الهواتف 📱", callback_data="phone_prices"),
+    InlineKeyboardButton("أسعار الهواتف 📱", callback_data="phone_brands_menu"),
     InlineKeyboardButton("إكسسوارات 🎧", callback_data="phone_acc"),
     InlineKeyboardButton("صيانة 🛠️", callback_data="phone_repair"),
     InlineKeyboardButton("شحن برامج وألعاب 🎮", callback_data="apps_charging")
+)
+
+# قائمة ماركات الهواتف
+brands_markup = InlineKeyboardMarkup(row_width=2).add(
+    InlineKeyboardButton("Samsung 📱", callback_data="brand_samsung"),
+    InlineKeyboardButton("Xiaomi 📱", callback_data="brand_xiaomi"),
+    InlineKeyboardButton("iPhone 🍏", callback_data="brand_iphone"),
+    InlineKeyboardButton("Infinix ⚡", callback_data="brand_infinix"),
+    InlineKeyboardButton("Tecno 📱", callback_data="brand_tecno"),
+    InlineKeyboardButton("Realme 📱", callback_data="brand_realme"),
+    InlineKeyboardButton("Honor 📱", callback_data="brand_honor"),
+    InlineKeyboardButton("Blackview 🛡️", callback_data="brand_blackview"),
+    InlineKeyboardButton("G-Tab 📱", callback_data="brand_gtab"),
+    InlineKeyboardButton("Itel 📱", callback_data="brand_itel"),
+    InlineKeyboardButton("Nokia 📞", callback_data="brand_nokia"),
+    InlineKeyboardButton("رجوع ⬅️", callback_data="back_to_mobile_services")
 )
 
 main_services_markup = InlineKeyboardMarkup(row_width=2).add(
@@ -418,7 +451,9 @@ navigation_callbacks = {
     "grade-9": ("قائمة الدروس الخصوصية للصف التاسع:", grade_9_markup),
     "grade-8": ("قائمة الدروس الخصوصية للصف الثامن:", grade_8_markup),
     "grade-7": ("قائمة الدروس الخصوصية للصف السابع:", grade_7_markup),
-    "back_to_e3dady": ("قائمة الصفوف:", e3dady_markup)
+    "back_to_e3dady": ("قائمة الصفوف:", e3dady_markup),
+    "phone_brands_menu": ("اختر ماركة الهاتف لعرض قائمة الأسعار:", brands_markup),
+    "back_to_mobile_services": ("📱 قسم خدمات الهواتف المحمولة:\nاختر الخدمة المطلوبة:", mobile_services_markup)
 }
 
 # ---------------------------------------------------------
@@ -463,7 +498,7 @@ def start_cmd(message):
         bot.send_message(message.chat.id, "أهلاً بك! اختر الخدمة التي تريدها:", reply_markup=markup)
 
 # ---------------------------------------------------------
-# 3. أوامر الإدارة (إضافة / بحث / تعديل / حذف / إدارة أسعار الهواتف)
+# 3. أوامر الإدارة (إضافة / بحث / تعديل / حذف)
 # ---------------------------------------------------------
 @bot.message_handler(func=lambda msg: msg.text == "➕ إضافة مزود جديد" and msg.from_user.id in ADMIN_IDS)
 def admin_add_start(message):
@@ -482,10 +517,12 @@ def admin_add_phone_price_start(message):
     text = (
         "📲 **إضافة سعر هاتف جديد:**\n\n"
         "أرسل البيانات بالشكل التالي:\n"
-        "`الموديل | السعر`\n\n"
+        "`الكود | الموديل | السعر`\n\n"
+        "💡 **أكواد الماركات المتاحة:**\n"
+        "`samsung`, `xiaomi`, `iphone`, `infinix`, `tecno`, `realme`, `honor`, `blackview`, `gtab`, `itel`, `nokia`\n\n"
         "**مثال:**\n"
-        "`Samsung Galaxy A55 | 3,200,000 ل.س`\n"
-        "`iPhone 15 Pro Max | 14,500,000 ل.س`"
+        "`samsung | Galaxy A55 | 3,200,000 ل.س`\n"
+        "`iphone | 15 Pro Max 256GB | 14,500,000 ل.س`"
     )
     user_states[message.chat.id] = "WAITING_ADD_PHONE_PRICE"
     bot.send_message(message.chat.id, text, parse_mode="Markdown")
@@ -497,9 +534,9 @@ def admin_delete_phone_price_start(message):
         bot.send_message(message.chat.id, "⚠️ لا توجد أجهزة مسجلة في قائمة الأسعار حالياً.")
         return
     
-    response = "📋 **قائمة أسعار الهواتف المسجلة:**\n\n"
-    for p_id, model, price in prices:
-        response += f"🆔 **ID:** `{p_id}` | 📱 {model} - 💰 {price}\n"
+    response = "📋 **قائمة أسعار الهواتف (آخر المسجلات):**\n\n"
+    for p_id, brand, model, price in prices:
+        response += f"🆔 **ID:** `{p_id}` | [{brand.upper()}] {model} - 💰 {price}\n"
     
     response += "\n💡 **للحذف:** أرسل الأمر `/delphone ID` (مثال: `/delphone 3`)"
     bot.send_message(message.chat.id, response, parse_mode="Markdown")
@@ -515,7 +552,7 @@ def cmd_delete_phone_price(message):
             return
         p_id = int(parts[1])
         if delete_phone_price_from_db(p_id):
-            bot.reply_to(message, f"✅ تم حذف الهاتف ذو الرقم `{p_id}` من قائمة الأسعار بنجاح!", parse_mode="Markdown")
+            bot.reply_to(message, f"✅ تم حذف الهاتف ذو الرقم `{p_id}` بنجاح!", parse_mode="Markdown")
         else:
             bot.reply_to(message, f"❌ لم يتم العثور على هاتف بالرقم المعرف `{p_id}`.", parse_mode="Markdown")
     except ValueError:
@@ -564,7 +601,6 @@ def cmd_edit_provider(message):
 def handle_admin_states(message):
     state = user_states.get(message.chat.id)
 
-    # إلغاء العملية إذا ضغط على أحد أزرار اللوحة
     if message.text in ["خدمات ⚙️", "صالونات نسائية 💄", "حلاقين رجالي 💈", "خدمات الهواتف المحمولة 📱", "عطورات ⚱️💨", "خدمات تدريس 📗", "➕ إضافة مزود جديد", "🔍 بحث وتعديل/حذف", "📱➕ إضافة سعر هاتف", "📱❌ حذف سعر هاتف"]:
         user_states[message.chat.id] = None
         return
@@ -584,13 +620,13 @@ def handle_admin_states(message):
 
     elif state == "WAITING_ADD_PHONE_PRICE":
         parts = [p.strip() for p in message.text.split("|")]
-        if len(parts) < 2:
-            bot.reply_to(message, "⚠️ تنسيق خاطئ! تأكد من إرسال البيانات بالشكل:\n`الموديل | السعر`", parse_mode="Markdown")
+        if len(parts) < 3:
+            bot.reply_to(message, "⚠️ تنسيق خاطئ! أرسل البيانات بهذا الشكل:\n`الكود | الموديل | السعر`\nمثال:\n`samsung | Galaxy A55 | 3,200,000 ل.س`", parse_mode="Markdown")
             return
 
-        model, price = parts[0], parts[1]
-        if add_phone_price_to_db(model, price):
-            bot.reply_to(message, f"✅ **تمت إضافة سعر الهاتف بنجاح!**\n\n📱 **الموديل:** {model}\n💰 **السعر:** {price}", parse_mode="Markdown")
+        brand, model, price = parts[0], parts[1], parts[2]
+        if add_phone_price_to_db(brand, model, price):
+            bot.reply_to(message, f"✅ **تمت إضافة سعر الهاتف بنجاح!**\n\n🏷️ **البراند:** `{brand.upper()}`\n📱 **الموديل:** {model}\n💰 **السعر:** {price}", parse_mode="Markdown")
             user_states[message.chat.id] = None
         else:
             bot.reply_to(message, "❌ حدث خطأ أثناء إضافة السعر.")
@@ -684,21 +720,44 @@ def callback_query(call):
             text, markup = navigation_callbacks[data]
             bot.edit_message_text(text, chat_id, msg_id, reply_markup=markup)
         
-        # معالجة كبسة أسعار الهواتف لعرض الجدول المنسق
-        elif data == "phone_prices":
-            prices = get_all_phone_prices()
+        # معالجة أزرار أسعار الماركات المختلفة
+        elif data.startswith("brand_"):
+            brand_code = data.replace("brand_", "")
+            
+            brand_names = {
+                "samsung": "Samsung 📱",
+                "xiaomi": "Xiaomi 📱",
+                "iphone": "iPhone 🍏",
+                "infinix": "Infinix ⚡",
+                "tecno": "Tecno 📱",
+                "realme": "Realme 📱",
+                "honor": "Honor 📱",
+                "blackview": "Blackview 🛡️",
+                "gtab": "G-Tab 📱",
+                "itel": "Itel 📱",
+                "nokia": "Nokia 📞"
+            }
+            
+            brand_title = brand_names.get(brand_code, brand_code.upper())
+            prices = get_phone_prices_by_brand(brand_code)
+            
+            # زر رجوع لقائمة الماركات
+            back_to_brands_markup = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("رجوع للماركات ⬅️", callback_data="phone_brands_menu")
+            )
+
             if prices:
-                response = "📱 **جدول أسعار الهواتف المحمولة:**\n\n"
+                response = f"📱 **أسعار هواتف {brand_title}:**\n\n"
                 response += "```\n"
-                response += f"{'الموديل':<22} | {'السعر'}\n"
-                response += "-" * 35 + "\n"
+                response += f"{'الموديل':<20} | {'السعر'}\n"
+                response += "-" * 33 + "\n"
                 for _, model, price in prices:
-                    response += f"{model:<22} | {price}\n"
+                    response += f"{model:<20} | {price}\n"
                 response += "```"
             else:
-                response = "⚠️ لا توجد أسعار مسجلة حالياً."
+                response = f"⚠️ لا توجد أسعار متوفرة حالياً لهواتف **{brand_title}**."
 
-            bot.send_message(chat_id, response, parse_mode="Markdown")
+            bot.send_message(chat_id, response, parse_mode="Markdown", reply_markup=back_to_brands_markup)
 
         else:
             providers = get_providers_by_category(data)

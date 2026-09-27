@@ -416,6 +416,11 @@ brands_markup = InlineKeyboardMarkup(row_width=2).add(
     InlineKeyboardButton("Nokia 📞", callback_data="brand_nokia"),
     InlineKeyboardButton("رجوع ⬅️", callback_data="back_to_mobile_services")
 )
+# قائمة شحن برامج وألعاب
+apps_markup = InlineKeyboardMarkup(row_width=2).add(
+    InlineKeyboardButton("ألعاب 🎮", callback_data="games_charging"),
+    InlineKeyboardButton("تطبيقات 📱", callback_data="app_charging")
+)
 
 main_services_markup = InlineKeyboardMarkup(row_width=2).add(
     InlineKeyboardButton("طبية 💉", callback_data="medicine"),
@@ -453,7 +458,8 @@ navigation_callbacks = {
     "grade-7": ("قائمة الدروس الخصوصية للصف السابع:", grade_7_markup),
     "back_to_e3dady": ("قائمة الصفوف:", e3dady_markup),
     "phone_brands_menu": ("اختر ماركة الهاتف لعرض قائمة الأسعار:", brands_markup),
-    "back_to_mobile_services": ("📱 قسم خدمات الهواتف المحمولة:\nاختر الخدمة المطلوبة:", mobile_services_markup)
+    "back_to_mobile_services": ("📱 قسم خدمات الهواتف المحمولة:\nاختر الخدمة المطلوبة:", mobile_services_markup),
+    "apps_charging": ("📱 شحن برامج وألعاب:\nاختر نوع الشحن:", apps_markup)
 }
 
 # ---------------------------------------------------------

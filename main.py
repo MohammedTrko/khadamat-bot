@@ -334,7 +334,7 @@ literary_11_markup = InlineKeyboardMarkup(row_width=2).add(
 
 science_10_markup = InlineKeyboardMarkup(row_width=2).add(
     InlineKeyboardButton("رياضيات 📐", callback_data="math-10"),
-    InlineKeyboardButton("فيزياء ⚛️", callback_data="physics-10"),
+    InlineKeyboardButton("فيزياء ⚛️️", callback_data="physics-10"),
     InlineKeyboardButton("كيمياء ⚗️", callback_data="chemistry-10"),
     InlineKeyboardButton("أحياء 🧬", callback_data="biology-10"),
     InlineKeyboardButton("لغة إنجليزية 📝", callback_data="english-10"),
@@ -365,7 +365,7 @@ grade_9_markup = InlineKeyboardMarkup(row_width=2).add(
     InlineKeyboardButton("لغة عربية 📝", callback_data="arabic-9"),
     InlineKeyboardButton("لغة فرنسية 📝", callback_data="french-9"),
     InlineKeyboardButton("اجتماعيات 🏺", callback_data="history-9"),
-    InlineKeyboardButton("كيمياء ⚗️", callback_data="chemistry-9"),
+    InlineKeyboardButton("كيمياء ⚗️️", callback_data="chemistry-9"),
     InlineKeyboardButton("فيزياء ⚡", callback_data="physics-9"),
     InlineKeyboardButton("رجوع ⬅️", callback_data="back_to_e3dady")
 )
@@ -814,12 +814,40 @@ def callback_query(call):
             )
             bot.edit_message_text(response, chat_id, msg_id, reply_markup=back_markup, parse_mode="Markdown")
 
-        # معالجة بقية التصنيفات العامة (جلب من جدول المزودين providers)
+        # معالجة بقية التصنيفات العامة (جلب من جدول المزودين providers) وتوجيه زر الرجوع
         else:
             providers = get_providers_by_category(data)
             
+            # تحديد وجهة زر الرجوع ديناميكياً
+            if data in ["math", "physics", "chemistry", "biology", "english", "french", "arabic"]:
+                back_target = "scientific"
+            elif data in ["philosophy", "history", "geography", "arabic_lit", "english_lit", "french_lit"]:
+                back_target = "literary"
+            elif data in ["math-11", "physics-11", "chemistry-11", "biology-11"]:
+                back_target = "science-11"
+            elif data in ["history-11", "geography-11", "french-11"]:
+                back_target = "literary-11"
+            elif data in ["arabic-11", "english-11"]:
+                back_target = "secondary"
+            elif data in ["math-10", "physics-10", "chemistry-10", "biology-10"]:
+                back_target = "science-10"
+            elif data in ["history-10", "geography-10", "french-10"]:
+                back_target = "literary-10"
+            elif data in ["arabic-10", "english-10"]:
+                back_target = "secondary"
+            elif data.endswith("-9"):
+                back_target = "grade-9"
+            elif data.endswith("-8"):
+                back_target = "grade-8"
+            elif data.endswith("-7"):
+                back_target = "grade-7"
+            elif data == "educational_centers":
+                back_target = "back_to_study"
+            else:
+                back_target = "back_to_services"
+
             back_markup = InlineKeyboardMarkup().add(
-                InlineKeyboardButton("رجوع ⬅️", callback_data="back_to_services")
+                InlineKeyboardButton("رجوع ⬅️", callback_data=back_target)
             )
 
             if providers:
